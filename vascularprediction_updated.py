@@ -360,13 +360,14 @@ def _prioritize(weakness_hint: Optional[str], terrs_from_pred: List[str], case: 
 
     ordered = _apply_clinical_pruning(ordered, weakness_hint, case)
 
-    capped: List[str] = []
+    # Return TOP-1 vascular territory only.
+    # This keeps vascular_estimate["vascular_territory"] as a one-item list
+    # so downstream code remains compatible with the original schema.
     for t in ordered:
-        if t not in capped:
-            capped.append(t)
-        if len(capped) == 2:
-            break
-    return capped
+        if t in ALLOWED_TERRITORIES:
+            return [t]
+
+    return [weakness_hint or "MCA"]
 
 # ---------- Final estimator ----------
 def estimate_vascular_territory(case: Dict[str, Any]) -> Dict[str, Any]:
@@ -381,7 +382,7 @@ def estimate_vascular_territory(case: Dict[str, Any]) -> Dict[str, Any]:
     if weakness_hint: conf += 0.25
     if terrs_from_pred: conf += 0.2
     if _has_posterior_fossa_signs(case): conf += 0.05
-    if len(territories) == 2: conf -= 0.1
+    # No multi-territory penalty because this version returns TOP-1 only.
     conf = max(0.0, min(1.0, conf))
 
     rationale_bits = []
